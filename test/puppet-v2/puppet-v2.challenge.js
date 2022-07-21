@@ -83,7 +83,7 @@ describe('[Challenge] Puppet v2', function () {
     it('Exploit', async function () {
         /** CODE YOUR EXPLOIT HERE */
 
-        //*********************************************************************************************************************
+    //*********************************************************************************************************************
         console.log('\n------- Check Before -----------------------\n');
         let uniswapDVTBalance = ethers.utils.formatEther(ethers.BigNumber.from(await this.token.balanceOf(this.uniswapExchange.address)));
         let uniswapEthBalance = ethers.utils.formatEther(ethers.BigNumber.from(await this.weth.balanceOf(this.uniswapExchange.address)));
