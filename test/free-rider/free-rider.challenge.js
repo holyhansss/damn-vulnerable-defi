@@ -6,6 +6,7 @@ const routerJson = require("@uniswap/v2-periphery/build/UniswapV2Router02.json")
 const { ethers } = require('hardhat');
 const { expect } = require('chai');
 const { executeTxWithSigners } = require("@gnosis.pm/safe-contracts");
+const { BigNumber } = require("ethers");
 
 describe('[Challenge] Free Rider', function () {
     let deployer, attacker, buyer;
@@ -117,7 +118,8 @@ describe('[Challenge] Free Rider', function () {
         );
 
         await attackContract.connect(attacker).attackMarketPlace(ethers.utils.parseEther('15'));
-
+            console.log(ethers.utils.formatEther(ethers.BigNumber.from(await ethers.provider.getBalance(attacker.address))))
+            
     });
 
     after(async function () {

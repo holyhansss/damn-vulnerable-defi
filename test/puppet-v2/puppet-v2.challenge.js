@@ -110,7 +110,7 @@ describe('[Challenge] Puppet v2', function () {
         
         let calculatedDeposit = await ethers.utils.formatEther(ethers.BigNumber.from(await this.lendingPool.calculateDepositOfWETHRequired(POOL_INITIAL_TOKEN_BALANCE)));
         let calculatedDepositToStringInETH = ethers.utils.parseEther((Math.ceil(calculatedDeposit * 10) / 10).toString());
-        
+        console.log((Math.ceil(calculatedDeposit * 10) / 10).toString())
         await this.weth.connect(attacker).deposit({value: calculatedDepositToStringInETH } )
 
         this.weth.connect(attacker).approve(this.lendingPool.address, calculatedDepositToStringInETH);
